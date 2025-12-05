@@ -46,6 +46,12 @@ graph TD
 - **Message Broker:** RabbitMQ
 - **Infraestructura:** Docker, Docker Compose
 
+## Estado actual (veterinarios y autorizaciones)
+- Servicios `veterinarian` (3007) y `authorization` (3011) ya están en Docker Compose con colas RMQ y .env revisados (DBs expuestas en 5438/5439).
+- Gateway expone controladores de veterinarios y autorizaciones y propaga `role`/`veterinarianId` en JWT; el guard de permisos vet↔mascota cubre creación/actualización y lecturas puntuales, pero faltan listados, pruebas y metadatos de licencia/clinicName en Health.
+- Certificaciones de veterinario: se valida `mediaId` (UUID) y archivos pdf/png/jpg/jpeg ≤5MB; integración completa con Media y migraciones definitivas siguen pendientes.
+- Frontend: rol veterinarian via authStore, dashboard/perfil/búsqueda de vet y autorizaciones con toasts; QR personal y scanner listos. Pendiente QA/paginación real en pacientes/autorizaciones vet y Google Sign-In con rol.
+
 ## 🚀 Cómo arrancar
 
 ### Lo que necesitás
@@ -77,6 +83,9 @@ El proyecto usa un `Makefile` para facilitarte la vida con las operaciones comun
    npm install
    npm start
    ```
+
+### Swagger
+- Gateway expone la documentación en `http://localhost:3000/api/docs` (Authorizations, Veterinarians, Pets, Health). Incluye parámetros `page/limit` en listados paginados.
 
 ### Comandos útiles (usando el Makefile en `infra/`)
 
