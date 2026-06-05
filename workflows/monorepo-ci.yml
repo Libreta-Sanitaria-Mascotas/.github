@@ -1,0 +1,419 @@
+name: Monorepo CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      gateway: ${{ steps.filter.outputs.gateway }}
+      authorization: ${{ steps.filter.outputs.authorization }}
+      auth: ${{ steps.filter.outputs.auth }}
+      health: ${{ steps.filter.outputs.health }}
+      pet: ${{ steps.filter.outputs.pet }}
+      user: ${{ steps.filter.outputs.user }}
+      media: ${{ steps.filter.outputs.media }}
+      notification: ${{ steps.filter.outputs.notification }}
+      veterinarian: ${{ steps.filter.outputs.veterinarian }}
+      appointment: ${{ steps.filter.outputs.appointment }}
+      prescription: ${{ steps.filter.outputs.prescription }}
+      clinic: ${{ steps.filter.outputs.clinic }}
+      certificate: ${{ steps.filter.outputs.certificate }}
+      app: ${{ steps.filter.outputs.app }}
+      all: ${{ steps.filter.outputs.all }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect modified services
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            gateway:
+              - 'gateway/**'
+              - 'infra/**'
+            authorization:
+              - 'authorization/**'
+            auth:
+              - 'auth/**'
+            health:
+              - 'health/**'
+            pet:
+              - 'pet/**'
+            user:
+              - 'user/**'
+            media:
+              - 'media/**'
+            notification:
+              - 'notification/**'
+            veterinarian:
+              - 'veterinarian/**'
+            appointment:
+              - 'appointment/**'
+            prescription:
+              - 'prescription/**'
+            clinic:
+              - 'clinic/**'
+            certificate:
+              - 'certificate/**'
+            app:
+              - 'app/**'
+            all:
+              - '.github/workflows/**'
+
+  gateway:
+    name: Gateway tests
+    needs: changes
+    if: needs.changes.outputs.gateway == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        image: docker:dind
+        options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: gateway/package-lock.json
+
+      - name: Start test infra (Redis/Rabbit/Postgres)
+        run: |
+          docker compose -f infra/docker-compose.test.yml up -d
+          docker compose -f infra/docker-compose.test.yml ps
+
+      - name: Install dependencies (gateway)
+        run: npm ci
+        working-directory: gateway
+
+      - name: Run unit tests
+        run: npm test -- --runInBand
+        working-directory: gateway
+        env:
+          NODE_ENV: test
+          PORT: 3000
+          RABBITMQ_URL: amqp://admin:admin123@localhost:5672
+          LOG_LEVEL: warn
+          USER_SERVICE: localhost
+          USER_SERVICE_PORT: 3002
+          AUTH_SERVICE: localhost
+          AUTH_SERVICE_PORT: 3001
+          HEALTH_SERVICE: localhost
+          HEALTH_SERVICE_PORT: 3004
+          PET_SERVICE: localhost
+          PET_SERVICE_PORT: 3003
+          VETERINARIAN_SERVICE: localhost
+          VETERINARIAN_SERVICE_PORT: 3007
+          AUTHORIZATION_SERVICE: localhost
+          AUTHORIZATION_SERVICE_PORT: 3011
+          INCLUDE_VET_ID_IN_JWT: 'true'
+          MEDIA_SERVICE_URL: http://localhost:3005
+          MEDIA_API_KEY: test
+          ALLOWED_ORIGINS: http://localhost:3000
+          JWT_SECRET: testsecret
+          JWT_EXPIRES_IN: 1h
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+
+      - name: Run e2e tests (mocked)
+        run: npm run test:e2e -- --runInBand
+        working-directory: gateway
+        env:
+          NODE_ENV: test
+          PORT: 3000
+          RABBITMQ_URL: amqp://admin:admin123@localhost:5672
+          LOG_LEVEL: warn
+          USER_SERVICE: localhost
+          USER_SERVICE_PORT: 3002
+          AUTH_SERVICE: localhost
+          AUTH_SERVICE_PORT: 3001
+          HEALTH_SERVICE: localhost
+          HEALTH_SERVICE_PORT: 3004
+          PET_SERVICE: localhost
+          PET_SERVICE_PORT: 3003
+          VETERINARIAN_SERVICE: localhost
+          VETERINARIAN_SERVICE_PORT: 3007
+          AUTHORIZATION_SERVICE: localhost
+          AUTHORIZATION_SERVICE_PORT: 3011
+          INCLUDE_VET_ID_IN_JWT: 'true'
+          MEDIA_SERVICE_URL: http://localhost:3005
+          MEDIA_API_KEY: test
+          ALLOWED_ORIGINS: http://localhost:3000
+          JWT_SECRET: testsecret
+          JWT_EXPIRES_IN: 1h
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+
+      - name: Teardown infra
+        if: always()
+        run: docker compose -f infra/docker-compose.test.yml down
+
+  authorization:
+    name: Authorization tests
+    needs: changes
+    if: needs.changes.outputs.authorization == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: authorization
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: authorization/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand
+        env:
+          NODE_ENV: test
+
+  auth:
+    name: Auth tests
+    needs: changes
+    if: needs.changes.outputs.auth == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: auth
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: auth/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand
+        env:
+          NODE_ENV: test
+
+  health:
+    name: Health tests
+    needs: changes
+    if: needs.changes.outputs.health == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: health
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: health/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand
+        env:
+          NODE_ENV: test
+
+  pet:
+    name: Pet tests
+    needs: changes
+    if: needs.changes.outputs.pet == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: pet/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand
+        env:
+          NODE_ENV: test
+
+  user:
+    name: User tests
+    needs: changes
+    if: needs.changes.outputs.user == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: user
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: user/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand
+        env:
+          NODE_ENV: test
+
+  media:
+    name: Media tests
+    needs: changes
+    if: needs.changes.outputs.media == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: media
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: media/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand
+        env:
+          NODE_ENV: test
+
+  notification:
+    name: Notification tests
+    needs: changes
+    if: needs.changes.outputs.notification == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: notification
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: notification/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand
+        env:
+          NODE_ENV: test
+
+  veterinarian:
+    name: Veterinarian tests
+    needs: changes
+    if: needs.changes.outputs.veterinarian == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: veterinarian
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: veterinarian/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand
+        env:
+          NODE_ENV: test
+
+  appointment:
+    name: Appointment tests
+    needs: changes
+    if: needs.changes.outputs.appointment == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: appointment
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: appointment/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand
+        env:
+          NODE_ENV: test
+
+  prescription:
+    name: Prescription tests
+    needs: changes
+    if: needs.changes.outputs.prescription == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: prescription
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: prescription/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand
+        env:
+          NODE_ENV: test
+
+  clinic:
+    name: Clinic tests
+    needs: changes
+    if: needs.changes.outputs.clinic == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clinic
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: clinic/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand
+        env:
+          NODE_ENV: test
+
+  certificate:
+    name: Certificate tests
+    needs: changes
+    if: needs.changes.outputs.certificate == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: certificate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: certificate/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand
+        env:
+          NODE_ENV: test
+
+  app:
+    name: App tests
+    needs: changes
+    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand
+        env:
+          NODE_ENV: test
