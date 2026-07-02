@@ -1,121 +1,45 @@
 # 🐾 Libreta Sanitaria de Mascotas
 
-Plataforma para gestionar la historia clínica de tus mascotas, incluyendo vacunas, historial médico y más. Construida con una arquitectura de microservicios y una aplicación móvil multiplataforma.
+**La libreta sanitaria de tus mascotas, en un solo lugar.**
+Vacunas, controles, historial médico y recordatorios — siempre a mano, sin papeles perdidos.
 
-## 🏗 Arquitectura
+---
 
-El sistema está armado con una arquitectura de microservicios para asegurar que escale y sea fácil de mantener.
+## ¿Qué es?
 
-```mermaid
-graph TD
-    Client[App Móvil/Web] --> Gateway[API Gateway]
-    Gateway --> Auth[Servicio de Autenticación]
-    Gateway --> User[Servicio de Usuarios]
-    Gateway --> Pet[Servicio de Mascotas]
-    Gateway --> Health[Servicio de Salud]
-    Gateway --> Media[Servicio Multimedia]
-    Gateway --> Notif[Servicio de Notificaciones]
-    Gateway --> Vet[Servicio de Veterinarios]
-    Gateway --> Authorization[Servicio de Autorizaciones]
-    
-    Auth --> AuthDB[(Auth DB)]
-    Auth --> Redis[(Redis)]
-    
-    User --> UserDB[(User DB)]
-    
-    Pet --> PetDB[(Pet DB)]
-    
-    Health --> HealthDB[(Health DB)]
-    
-    Media --> MediaDB[(Media DB)]
-    
-    Vet --> VetDB[(Vet DB)]
-    
-    Authorization --> AuthorizationDB[(Authorization DB)]
-    
-    Notif --> RabbitMQ[RabbitMQ]
-    Vet --> RabbitMQ
-    Authorization --> RabbitMQ
-```
+Pensala como esa libretita naranja que te da el veterinario, pero digital y que no se te pierde ni se moja. La cargás una vez y siempre tenés a mano cuándo toca la próxima vacuna, qué desparasitario usó tu perro el año pasado, o el peso de tu gato en el último control.
 
-## 🛠 Tech Stack (Tecnologías)
+Está pensada para **tutores** que quieren tener la salud de sus mascotas ordenada, y para **veterinarios** que quieren dejar registros que su cliente pueda ver desde el celu, sin tener que sacar foto a un papel.
 
-- **Backend:** NestJS, TypeScript
-- **Frontend:** React Native (Expo), NativeWind, Zustand
-- **Bases de Datos:** PostgreSQL, Redis
-- **Message Broker:** RabbitMQ
-- **Infraestructura:** Docker, Docker Compose
+## 🐕 Para vos, tutor
 
-## Estado actual (veterinarios y autorizaciones)
-- Servicios `veterinarian` (3007) y `authorization` (3011) ya están en Docker Compose con colas RMQ y .env revisados (DBs expuestas en 5438/5439).
-- Gateway expone controladores de veterinarios y autorizaciones y propaga `role`/`veterinarianId` en JWT; el guard de permisos vet↔mascota cubre creación/actualización y lecturas puntuales, pero faltan listados, pruebas y metadatos de licencia/clinicName en Health.
-- Certificaciones de veterinario: se valida `mediaId` (UUID) y archivos pdf/png/jpg/jpeg ≤5MB; integración completa con Media y migraciones definitivas siguen pendientes.
-- Frontend: rol veterinarian via authStore, dashboard/perfil/búsqueda de vet y autorizaciones con toasts; QR personal y scanner listos. Pendiente QA/paginación real en pacientes/autorizaciones vet y Google Sign-In con rol.
+- Registrá tus mascotas — perros, gatos, aves, conejos, lo que sea.
+- Cargá **vacunas, desparasitaciones, cirugías, controles** con fecha y notas.
+- Guardá fotos y archivos (recetas, radiografías, análisis).
+- Vinculate con tu veterinario de confianza y compartí el historial cuando lo necesite.
+- Recibí recordatorios de próximas visitas o dosis pendientes.
 
-## 🚀 Cómo arrancar
+## 🩺 Para vos, veterinario
 
-### Lo que necesitás
+- Sumá pacientes que ya te consultan y llevá su historial digital.
+- Dejá registros firmados que el tutor puede ver desde su celu.
+- Autorizaciones explícitas — solo ves los pacientes que te autorizaron.
+- QR verificable de tu perfil profesional.
 
-- [Docker](https://www.docker.com/) & Docker Compose
-- [Node.js](https://nodejs.org/) (v20+ recomendado)
+## 📱 Cómo se usa
 
-### Instalación y Puesta en Marcha
+Es una **Progressive Web App** — se abre desde el navegador, y si querés la instalás como una app más en tu celular o compu. No hace falta bajar nada de una tienda.
 
-El proyecto usa un `Makefile` para facilitarte la vida con las operaciones comunes.
+Funciona en cualquier dispositivo con Chrome, Edge o Safari.
 
-1. **Cloná el repositorio:**
-   ```bash
-   git clone <url-del-repositorio>
-   cd libreta-sanitaria-mascotas
-   ```
+## 🌎 De dónde salió
 
-2. **Levantá todos los servicios:**
-   ```bash
-   cd infra
-   make up
-   ```
-   Este comando te levanta todos los microservicios y las bases de datos usando Docker Compose.
+Este proyecto nace de una historia común: perder papelitos, no acordarse cuándo fue la última vacuna, tener que llamar al veterinario para preguntar algo que estaba anotado en algún lado. Es un MVP hecho con cariño desde Argentina 🇦🇷 y sigue creciendo.
 
-3. **Corré la App Móvil:**
-   Abrí una terminal nueva y mandale:
-   ```bash
-   cd app
-   npm install
-   npm start
-   ```
+## 📬 ¿Consultas o querés sumarte?
 
-### Swagger
-- Gateway expone la documentación en `http://localhost:3000/api/docs` (Authorizations, Veterinarians, Pets, Health). Incluye parámetros `page/limit` en listados paginados.
+Escribinos abriendo un issue en cualquiera de los repos internos o mandanos un mail — cualquier feedback es bienvenido, sobre todo si sos tutor o veterinario y querés compartir cómo lo usarías.
 
-### Comandos útiles (usando el Makefile en `infra/`)
+---
 
-- `make up`: Levanta todos los servicios en background.
-- `make down`: Baja todos los servicios.
-- `make down-volumes`: Baja los servicios y borra los volúmenes de las bases de datos (resetea la data).
-- `make logs`: Mirá los logs de todos los servicios.
-- `make ps`: Chequeá el estado de los contenedores.
-
-## 📦 Resumen de Servicios
-
-| Servicio | Puerto | Descripción |
-|---------|------|-------------|
-| **Gateway** | 3000 | Punto de entrada para la API. |
-| **Auth** | 3001 | Autenticación y Autorización (JWT). |
-| **User** | 3002 | Manejo de perfiles de usuario. |
-| **Pet** | 3003 | Perfiles y datos de las mascotas. |
-| **Health** | 3004 | Registros médicos, vacunas, etc. |
-| **Media** | 3005 | Subida de archivos y manejo multimedia. |
-| **Notification** | 3006 | Notificaciones push y alertas. |
-| **Veterinarian** | 3007 | Perfiles y certificaciones de veterinarios, QR verificado. |
-| **Authorization** | 3011 | Consentimientos y autorizaciones de acceso a historiales. |
-
-## 📱 App Móvil
-
-La aplicación móvil está hecha con Expo y corre en Android, iOS y Web.
-- **Framework:** React Native / Expo
-- **Estilos:** NativeWind (TailwindCSS)
-- **Manejo de Estado:** Zustand
-
-## 📄 Licencia
-
-[MIT](LICENSE)
+<sub>Hecho con 🐾 y mucho café — 2026</sub>
